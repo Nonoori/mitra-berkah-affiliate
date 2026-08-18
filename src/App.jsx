@@ -409,7 +409,449 @@ function SectionWD({ saldo }) {
             />
           </div>
 
-          <div>
+                    <div>
             <label className="text-xs font-semibold" style={{ color: COLORS.textMuted }}>Pilih Rekening Tujuan</label>
             <select
-              value
+              value={rekeningTujuan}
+              onChange={(e) => setRekeningTujuan(e.target.value)}
+              className="w-full mt-1 px-3 py-2 rounded-xl text-sm outline-none bg-white"
+              style={{ border: `1px solid ${COLORS.border}` }}
+            >
+              <option value="bca">BCA ••• 1234 (A.n Siti Aminah)</option>
+              <option value="dana">DANA ••• 9087 (A.n Siti Aminah)</option>
+              <option value="gopay">GoPay ••• 9087 (A.n Siti Aminah)</option>
+            </select>
+          </div>
+
+          {/* Infaq / Donasi Server Block */}
+          <div className="p-4 rounded-xl" style={{ background: "#F7F5F0", border: `1px solid ${COLORS.border}` }}>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-semibold flex items-center gap-1.5" style={{ color: COLORS.primaryDark }}>
+                <HeartHandshake size={15} color={COLORS.accent} />
+                Infaq Server & Gotong Royong
+              </span>
+              <span className="text-xs font-bold font-mono" style={{ color: COLORS.accent }}>{persenDonasi}%</span>
+            </div>
+
+            <div className="flex gap-2 my-2">
+              {[10, 12, 15, 20].map((pct) => (
+                <button
+                  key={pct}
+                  type="button"
+                  onClick={() => setPersenDonasi(pct)}
+                  className={`flex-1 py-1.5 text-xs rounded-lg font-semibold transition ${
+                    persenDonasi === pct ? "text-white" : "bg-white text-gray-700"
+                  }`}
+                  style={{
+                    background: persenDonasi === pct ? COLORS.accent : "#FFF",
+                    border: `1px solid ${COLORS.border}`
+                  }}
+                >
+                  {pct}% {pct === 10 && "(Min)"}
+                </button>
+              ))}
+            </div>
+
+            <div className="text-xs space-y-1 mt-3 pt-3 border-t" style={{ borderColor: COLORS.border, color: COLORS.textMuted }}>
+              <div className="flex justify-between">
+                <span>Infaq Server ({persenDonasi}%):</span>
+                <span className="font-mono font-semibold" style={{ color: COLORS.danger }}>- {rupiah(nominalDonasi)}</span>
+              </div>
+              <div className="flex justify-between text-sm font-bold pt-1" style={{ color: COLORS.primaryDark }}>
+                <span>Diterima Bersih:</span>
+                <span className="font-mono" style={{ color: COLORS.success }}>{rupiah(nominalDiterima)}</span>
+              </div>
+            </div>
+          </div>
+
+          {notif && (
+            <div className="p-3 rounded-xl text-xs flex items-center gap-2 bg-emerald-50 text-emerald-800 border border-emerald-200">
+              <Check size={16} /> Pengajuan WD berhasil dikirim ke antrean admin!
+            </div>
+          )}
+
+          <button
+            onClick={handleAjukan}
+            disabled={jumlahWd < 50000 || jumlahWd > saldo}
+            className="w-full py-3 rounded-full text-sm font-semibold text-white disabled:opacity-50"
+            style={{ background: COLORS.accent }}
+          >
+            Ajukan Pencairan Sekarang
+          </button>
+        </div>
+      </Card>
+
+      <Card className="p-5">
+        <p className="font-body text-sm font-semibold mb-4" style={{ color: COLORS.textMuted }}>Riwayat Pencairan & Donasi</p>
+        <div className="space-y-3">
+          {WD_HISTORY.map((w) => (
+            <div key={w.id} className="flex items-center justify-between border-b pb-3 last:border-0 last:pb-0" style={{ borderColor: COLORS.border }}>
+              <div>
+                <p className="text-sm font-semibold" style={{ color: COLORS.text }}>{w.id}</p>
+                <p className="text-xs mt-0.5" style={{ color: COLORS.textMuted }}>{w.tanggal} · {w.ket}</p>
+                <p className="text-xs font-mono" style={{ color: COLORS.textMuted }}>Infaq Server: {rupiah(w.donasi)}</p>
+              </div>
+              <div className="text-right">
+                <p className="font-mono text-sm font-semibold" style={{ color: COLORS.success }}>{rupiah(w.neto)}</p>
+                <Badge tone="success">{w.status}</Badge>
+              </div>
+            </div>
+          ))}
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+function SectionDonasi() {
+  const [copied, setCopied] = useState(false);
+  const rekAdmin = "7123456789";
+
+  const handleCopy = () => {
+    navigator.clipboard?.writeText(rekAdmin);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className="space-y-5">
+      <Card className="p-5" style={{ background: COLORS.primaryDark, color: "#FFF" }}>
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: COLORS.accent }}>
+            <Server size={20} color="#FFF" />
+          </div>
+          <div>
+            <p className="font-display text-lg">Kelangsungan Server & Sistem</p>
+            <p className="text-xs text-white/70">Prinsip gotong royong agar platform tetap gratis</p>
+          </div>
+        </div>
+        <p className="text-sm mt-4 leading-relaxed text-white/90">
+          Aplikasi dan ekosistem ini dibuat tanpa biaya pendaftaran agar siapa saja bisa memiliki tambahan penghasilan melalui affiliate marketing. Setiap donasi & potongan 10% dialokasikan untuk:
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-4 text-xs text-white/80">
+          <div className="p-2.5 rounded-lg bg-white/10 flex items-center gap-2">
+            <Check size={14} className="text-emerald-400 shrink-0" /> Biaya domain, server, & database
+          </div>
+          <div className="p-2.5 rounded-lg bg-white/10 flex items-center gap-2">
+            <Check size={14} className="text-emerald-400 shrink-0" /> Pembuatan template & konten promosi harian
+          </div>
+          <div className="p-2.5 rounded-lg bg-white/10 flex items-center gap-2">
+            <Check size={14} className="text-emerald-400 shrink-0" /> Pemeliharaan sistem termux/backend
+          </div>
+          <div className="p-2.5 rounded-lg bg-white/10 flex items-center gap-2">
+            <Check size={14} className="text-emerald-400 shrink-0" /> Insentif admin bimbingan mitra pemula
+          </div>
+        </div>
+      </Card>
+
+      <Card className="p-5">
+        <p className="font-display text-lg" style={{ color: COLORS.primaryDark }}>Donasi / Infaq Sukarela Tambahan</p>
+        <p className="text-sm mt-1 mb-4" style={{ color: COLORS.textMuted }}>
+          Jika Anda ingin berdonasi di luar pemotongan WD untuk mendukung pengembangan fitur baru:
+        </p>
+
+        <div className="p-4 rounded-xl space-y-2" style={{ background: "#F5F3ED", border: `1px solid ${COLORS.border}` }}>
+          <div className="flex justify-between items-center text-sm">
+            <span style={{ color: COLORS.textMuted }}>Bank Syariah Indonesia (BSI)</span>
+            <Badge tone="accent">Rekening Server Admin</Badge>
+          </div>
+          <div className="flex justify-between items-center">
+            <span className="font-mono text-lg font-bold" style={{ color: COLORS.primaryDark }}>{rekAdmin}</span>
+            <button
+              onClick={handleCopy}
+              className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-white flex items-center gap-1"
+              style={{ border: `1px solid ${COLORS.border}`, color: COLORS.primaryDark }}
+            >
+              {copied ? <Check size={13} className="text-emerald-600" /> : <Copy size={13} />}
+              {copied ? "Tersalin" : "Salin No. Rek"}
+            </button>
+          </div>
+          <p className="text-xs" style={{ color: COLORS.textMuted }}>A.n Admin Pengelola Mitra Berkah</p>
+        </div>
+
+        <div className="mt-4 p-3 rounded-xl flex items-start gap-2 bg-amber-50 text-amber-900 border border-amber-200 text-xs">
+          <Info size={16} className="shrink-0 mt-0.5" />
+          <span>Konfirmasi donasi sukarela dapat dikirimkan langsung ke menu <strong>Bantuan Admin</strong> agar tercatat di pembukuan server.</span>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+function SectionProduk() {
+  const [copiedId, setCopiedId] = useState(null);
+  return (
+    <div className="space-y-4">
+      {PRODUCTS.map((p) => (
+        <Card key={p.id} className="p-5">
+          <div className="flex items-start gap-4">
+            <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: "#E9EFEC" }}>
+              <p.type size={18} color={COLORS.primary} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between gap-2">
+                <p className="font-display text-base leading-snug" style={{ color: COLORS.primaryDark }}>{p.name}</p>
+                <Badge tone="accent">{p.komisi}</Badge>
+              </div>
+              <p className="text-xs mt-0.5" style={{ color: COLORS.textMuted }}>{p.cat}</p>
+              <p className="text-sm mt-2" style={{ color: COLORS.text }}>{p.desc}</p>
+              <div className="flex items-center justify-between mt-3">
+                <div>
+                  <p className="text-xs" style={{ color: COLORS.textMuted }}>Potensi komisi / penjualan</p>
+                  <p className="font-mono font-semibold" style={{ color: COLORS.accent }}>{rupiah(p.potensi)}</p>
+                </div>
+                <button
+                  onClick={() => { setCopiedId(p.id); setTimeout(() => setCopiedId(null), 1500); }}
+                  className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-full text-white"
+                  style={{ background: COLORS.primary }}
+                >
+                  {copiedId === p.id ? <><Check size={13} /> Tersalin</> : <><Link2 size={13} /> Salin Link</>}
+                </button>
+              </div>
+            </div>
+          </div>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
+function SectionProfil({ nama }) {
+  return (
+    <div className="space-y-5">
+      <Card className="p-5 flex items-center gap-4">
+        <div className="w-16 h-16 rounded-full flex items-center justify-center text-white text-2xl font-semibold" style={{ background: COLORS.accent }}>
+          {nama.charAt(0)}
+        </div>
+        <div>
+          <p className="font-display text-xl" style={{ color: COLORS.primaryDark }}>{nama}</p>
+          <Badge tone="success"><ShieldCheck size={12} /> Akun Mitra Aktif</Badge>
+        </div>
+      </Card>
+      <Card className="p-5 space-y-4">
+        {[
+          ["Nomor HP", "0812-3456-7890"],
+          ["Email", "sitiaminah@email.com"],
+          ["Status Infaq Server", "Aktif (Otomatis 10% saat WD)"],
+          ["Rekening Utama", "BCA ••• 1234"],
+        ].map(([label, val]) => (
+          <div key={label} className="flex items-center justify-between text-sm border-b pb-3 last:border-0 last:pb-0" style={{ borderColor: COLORS.border }}>
+            <span style={{ color: COLORS.textMuted }}>{label}</span>
+            <span className="font-medium" style={{ color: COLORS.text }}>{val}</span>
+          </div>
+        ))}
+      </Card>
+    </div>
+  );
+}
+
+function SectionTransaksi() {
+  const statusTone = { "Selesai": "success", "Diproses": "accent", "Batal": "muted" };
+  return (
+    <Card className="p-5">
+      <div className="space-y-3">
+        {TRANSACTIONS.map((t) => (
+          <div key={t.id} className="flex items-center justify-between border-b pb-3 last:border-0 last:pb-0" style={{ borderColor: COLORS.border }}>
+            <div>
+              <p className="text-sm font-semibold" style={{ color: COLORS.text }}>{t.produk}</p>
+              <p className="text-xs font-mono mt-0.5" style={{ color: COLORS.textMuted }}>{t.id} · {t.tanggal}</p>
+            </div>
+            <div className="text-right">
+              <p className="font-mono text-sm font-semibold" style={{ color: t.komisi ? COLORS.accent : COLORS.textMuted }}>
+                {t.komisi ? rupiah(t.komisi) : "—"}
+              </p>
+              <Badge tone={statusTone[t.status]}>{t.status}</Badge>
+            </div>
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+function SectionPenghasilan() {
+  return (
+    <div className="space-y-5">
+      <div className="grid grid-cols-2 gap-4">
+        <Card className="p-4">
+          <p className="text-xs" style={{ color: COLORS.textMuted }}>Total Komisi Masuk</p>
+          <p className="font-mono text-xl font-semibold mt-1" style={{ color: COLORS.primaryDark }}>{rupiah(1480000)}</p>
+        </Card>
+        <Card className="p-4">
+          <p className="text-xs" style={{ color: COLORS.textMuted }}>Total Dicairkan (Neto)</p>
+          <p className="font-mono text-xl font-semibold mt-1" style={{ color: COLORS.success }}>{rupiah(1223000)}</p>
+        </Card>
+      </div>
+      <Card className="p-5">
+        <p className="font-body text-sm font-semibold mb-4" style={{ color: COLORS.textMuted }}>Grafik Penjualan Mingguan</p>
+        <div style={{ width: "100%", height: 200 }}>
+          <ResponsiveContainer>
+            <LineChart data={CHART_DATA}>
+              <CartesianGrid strokeDasharray="3 3" stroke={COLORS.border} />
+              <XAxis dataKey="minggu" tick={{ fontSize: 12, fill: COLORS.textMuted }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 11, fill: COLORS.textMuted }} axisLine={false} tickLine={false} tickFormatter={(v) => `${v / 1000}k`} />
+              <Tooltip formatter={(v) => rupiah(v)} contentStyle={{ borderRadius: 12, border: `1px solid ${COLORS.border}`, fontFamily: "Plus Jakarta Sans" }} />
+              <Line type="monotone" dataKey="komisi" stroke={COLORS.accent} strokeWidth={2.5} dot={{ fill: COLORS.accent, r: 4 }} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </Card>
+      <SectionTransaksi />
+    </div>
+  );
+}
+
+function SectionCaraKerja() {
+  const steps = [
+    { title: "1. Pilih Produk & Ambil Link", body: "Pilih produk affiliate Shopee, TikTok, atau produk digital di katalog." },
+    { title: "2. Edit & Unduh Konten", body: "Gunakan foto atau video demo yang disediakan, tambahkan kalimat rekomendasi Anda sendiri." },
+    { title: "3. Sebarkan ke Media Sosial", body: "Bagikan ke status WhatsApp, grup Facebook, atau bio TikTok." },
+    { title: "4. Cairkan Komisi Berkah", body: "Tarik saldo ke rekening kapan saja dengan potongan infak minimal 10% untuk menjaga server tetap gratis selamanya." },
+  ];
+  return (
+    <div className="space-y-5">
+      <Card className="p-5"><JalurKerja /></Card>
+      {steps.map((s) => (
+        <Card key={s.title} className="p-5">
+          <p className="font-display text-lg" style={{ color: COLORS.primaryDark }}>{s.title}</p>
+          <p className="text-sm mt-1.5" style={{ color: COLORS.textMuted }}>{s.body}</p>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
+function SectionBantuan() {
+  return (
+    <div className="space-y-5">
+      <Card className="p-5">
+        <p className="font-display text-lg" style={{ color: COLORS.primaryDark }}>Pusat Bantuan & WhatsApp Admin</p>
+        <p className="text-sm mt-1" style={{ color: COLORS.textMuted }}>Butuh bimbingan atau konfirmasi penarikan? Tim admin kami siap merespons.</p>
+        <button className="mt-4 w-full py-3 rounded-full text-sm font-semibold text-white" style={{ background: "#3D7A5C" }}>
+          Hubungi Admin via WhatsApp
+        </button>
+      </Card>
+    </div>
+  );
+}
+
+function SectionFAQ() {
+  const [open, setOpen] = useState(0);
+  return (
+    <div className="space-y-3">
+      {FAQS.map((f, i) => (
+        <Card key={f.q} className="p-4">
+          <button onClick={() => setOpen(open === i ? -1 : i)} className="w-full flex items-center justify-between text-left">
+            <span className="font-semibold text-sm pr-3" style={{ color: COLORS.text }}>{f.q}</span>
+            <ChevronDown size={16} style={{ transform: open === i ? "rotate(180deg)" : "none", transition: "transform 0.2s", color: COLORS.textMuted }} />
+          </button>
+          {open === i && <p className="text-sm mt-2.5" style={{ color: COLORS.textMuted }}>{f.a}</p>}
+        </Card>
+      ))}
+    </div>
+  );
+}
+
+function Dashboard({ nama }) {
+  const [active, setActive] = useState("beranda");
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const saldo = 250000;
+
+  const titles = {
+    beranda: "Beranda Mitra",
+    profil: "Profil Saya",
+    "cara-kerja": "Panduan & Cara Kerja",
+    produk: "Katalog Produk Affiliate",
+    transaksi: "Riwayat Transaksi",
+    penghasilan: "Ringkasan Penghasilan",
+    wd: "Tarik Saldo Komisi (WD)",
+    donasi: "Infaq Operasional & Server",
+    bantuan: "Bantuan & Kontak Admin",
+    faq: "Tanya Jawab (FAQ)",
+  };
+
+  const renderSection = () => {
+    switch (active) {
+      case "beranda": return <SectionBeranda nama={nama} saldo={saldo} goTab={setActive} />;
+      case "profil": return <SectionProfil nama={nama} />;
+      case "cara-kerja": return <SectionCaraKerja />;
+      case "produk": return <SectionProduk />;
+      case "transaksi": return <SectionTransaksi />;
+      case "penghasilan": return <SectionPenghasilan />;
+      case "wd": return <SectionWD saldo={saldo} />;
+      case "donasi": return <SectionDonasi />;
+      case "bantuan": return <SectionBantuan />;
+      case "faq": return <SectionFAQ />;
+      default: return null;
+    }
+  };
+
+  return (
+    <div className="min-h-screen font-body flex" style={{ background: COLORS.bg }}>
+      <Sidebar active={active} setActive={setActive} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />
+      <main className="flex-1 p-5 md:p-8 max-w-3xl mx-auto w-full">
+        <TopBar setMobileOpen={setMobileOpen} saldo={saldo} nama={nama} />
+        <p className="font-display text-2xl mb-5" style={{ color: COLORS.primaryDark }}>{titles[active]}</p>
+        {renderSection()}
+      </main>
+    </div>
+  );
+}
+
+// ---------------- ROOT APP ----------------
+export default function App() {
+  const [page, setPage] = useState("landing");
+  const [authMode, setAuthMode] = useState("login");
+
+  if (page === "landing") {
+    return (
+      <>
+        {fonts}
+        <Landing goLogin={() => { setAuthMode("login"); setPage("auth"); }} goRegister={() => { setAuthMode("register"); setPage("auth"); }} />
+      </>
+    );
+  }
+  if (page === "auth") {
+    return (
+      <>
+        {fonts}
+        <Auth mode={authMode} setMode={setAuthMode} onSuccess={() => setPage("dashboard")} goLanding={() => setPage("landing")} />
+      </>
+    );
+  }
+  return (
+    <>
+      {fonts}
+      <Dashboard nama="Siti Aminah" />
+    </>
+  );
+}
+
+
+
+
+
+
+
+
+
+
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+              
