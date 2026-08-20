@@ -9,7 +9,7 @@ import {
   Edit, Trash2, ShieldAlert, CheckCircle2, XCircle, Menu, X,
   Shield, Headset, Crown, ArrowRight, Lock, Phone, HelpCircle,
   Copy, AlertCircle, ShoppingCart, Tag, Filter, Search, Calendar,
-  ArrowDownLeft, ArrowUpRight, StickyNote, Send
+  ArrowDownLeft, ArrowUpRight, StickyNote, Send, Mail, KeyRound
 } from "lucide-react";
 
 // ---------------- 1. KONFIGURASI FIREBASE ----------------
@@ -120,7 +120,7 @@ export default function App() {
                 <span className="font-bold text-sm text-stone-900">{currentUser.nama}</span>
                 {getRoleBadge(role)}
               </div>
-              <p className="text-[11px] text-stone-500 font-mono">WA: {currentUser.no_hp}</p>
+              <p className="text-[11px] text-stone-500 font-mono">WA: {currentUser.no_hp} | Email: {currentUser.email || "-"}</p>
             </div>
           </div>
 
@@ -285,7 +285,7 @@ export default function App() {
                             await updateDoc(doc(db, "users", currentUser.id), { saldo: saldoBaru });
                           } catch (e) {}
                           await catatTransaksi("JUAL", p.potensi_komisi, `Komisi Penjualan: ${p.nama_produk}`, currentUser.id, saldoBaru);
-                          alert(` Penjualan berhasil! Saldo bertambah ${rupiah(p.potensi_komisi)}`);
+                          alert(`🎉 Penjualan berhasil! Saldo bertambah ${rupiah(p.potensi_komisi)}`);
                         }}
                         className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold"
                       >
@@ -478,7 +478,7 @@ function DataUsersFilterPanel({ usersList, getRoleBadge }) {
   const [roleFilter, setRoleFilter] = useState("ALL");
 
   const filteredUsers = usersList.filter(u => {
-    const matchSearch = u.nama?.toLowerCase().includes(searchTerm.toLowerCase()) || u.no_hp?.includes(searchTerm) || u.no_ktp?.includes(searchTerm);
+    const matchSearch = u.nama?.toLowerCase().includes(searchTerm.toLowerCase()) || u.no_hp?.includes(searchTerm) || u.no_ktp?.includes(searchTerm) || u.email?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchRole = roleFilter === "ALL" ? true : (u.role || "user") === roleFilter;
     return matchSearch && matchRole;
   });
@@ -487,7 +487,7 @@ function DataUsersFilterPanel({ usersList, getRoleBadge }) {
     <div className="space-y-3">
       <div>
         <p className="text-lg font-bold text-stone-900">Index & Data Pengguna ({filteredUsers.length})</p>
-        <p className="text-xs text-stone-500">Pencarian berdasarkan KTP, Nama, atau Nomor WhatsApp.</p>
+        <p className="text-xs text-stone-500">Pencarian berdasarkan KTP, Nama, Email, atau Nomor WhatsApp.</p>
       </div>
 
       <div className="flex flex-col md:flex-row gap-2">
@@ -496,7 +496,7 @@ function DataUsersFilterPanel({ usersList, getRoleBadge }) {
           <input
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
-            placeholder="Cari KTP, Nama, atau No WhatsApp..."
+            placeholder="Cari KTP, Nama, Email, No WA..."
             className="w-full pl-9 pr-3 py-2 text-xs border border-stone-200 rounded-xl bg-white outline-none"
           />
         </div>
@@ -523,10 +523,13 @@ function DataUsersFilterPanel({ usersList, getRoleBadge }) {
                 {getRoleBadge(u.role || "user")}
               </div>
               <p className="text-xs text-stone-500 font-mono mt-0.5">
-                KTP: {u.no_ktp || "-"} | WA: {u.no_hp} | Telegram: @{u.telegram || "-"}
+                KTP: {u.no_ktp || "-"} | WA: {u.no_hp} | Email: {u.email || "-"}
               </p>
               <p className="text-xs text-stone-500 font-mono">
-                Domisili: {u.kota || "-"}, {u.provinsi || "-"} | Bank: {u.nama_bank || "-"} ({u.no_rekening || "-"})
+                Domisili: {u.kota || "-"}, {u.provinsi || "-"} | Telegram: @{u.telegram || "-"}
+              </p>
+              <p className="text-xs text-stone-500 font-mono">
+                Bank: {u.nama_bank || "-"} ({u.no_rekening || "-"})
               </p>
               <p className="text-xs text-emerald-700 font-bold font-mono mt-0.5">Saldo: {rupiah(u.saldo)}</p>
             </div>
@@ -558,9 +561,9 @@ function DataUsersFilterPanel({ usersList, getRoleBadge }) {
   );
 }
 
-// ---------------- 6. SMART AUTH (CEK KTP & CEK WA -> LOGIN / REGISTRASI) ----------------
+// ---------------- 6. SMART AUTH + INPUT EMAIL + ALUR LUPA PASSWORD OTP ----------------
 function AuthView({ onLoginSuccess }) {
-  // Step: 1 (Cek KTP & WA) -> 2 (Login Password) -> 3 (Pendaftaran Lengkap)
+  // Step: 1 (Cek KTP & WA) -> 2 (Login Password) -> 3 (Pendaftaran Lengkap) -> 4 (Lupa Pass Request OTP) -> 5 (Konfirmasi OTP & Reset Sandi)
   const [step, setStep] = useState(1);
   const [noKtp, setNoKtp] = useState("");
   const [noHp, setNoHp] = useState("");
@@ -568,11 +571,18 @@ function AuthView({ onLoginSuccess }) {
   
   // Data Form Registrasi Lengkap
   const [nama, setNama] = useState("");
+  const [email, setEmail] = useState("");
   const [alamatKota, setAlamatKota] = useState("");
   const [provinsi, setProvinsi] = useState("");
   const [telegram, setTelegram] = useState("");
   const [namaBank, setNamaBank] = useState("");
   const [noRekening, setNoRekening] = useState("");
+
+  // State Lupa Password & OTP
+  const [inputOtp, setInputOtp] = useState("");
+  const [generatedOtp, setGeneratedOtp] = useState("");
+  const [passwordBaru, setPasswordBaru] = useState("");
+  const [targetUser, setTargetUser] = useState(null);
 
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
@@ -594,12 +604,11 @@ function AuthView({ onLoginSuccess }) {
     setErrorMsg("");
 
     try {
-      // Cari apakah KTP atau WA sudah ada di Firestore
+      // Cari apakah KTP sudah ada di Firestore
       const qKtp = query(collection(db, "users"), where("no_ktp", "==", cleanKtp));
       const snapKtp = await getDocs(qKtp);
 
       if (!snapKtp.empty) {
-        // KTP DITEMUKAN -> Lanjut Login Password
         const docUser = snapKtp.docs[0];
         setUserDataFound({ id: docUser.id, ...docUser.data() });
         setStep(2);
@@ -613,7 +622,7 @@ function AuthView({ onLoginSuccess }) {
           setUserDataFound({ id: docUser.id, ...docUser.data() });
           setStep(2);
         } else {
-          // KTP & WA BELUM ADA -> Lanjut Isi Formulir Pendaftaran
+          // KTP & WA BELUM ADA -> Lanjut Isi Formulir Pendaftaran Lengkap
           setStep(3);
         }
       }
@@ -632,14 +641,14 @@ function AuthView({ onLoginSuccess }) {
     if (userDataFound.password === password) {
       onLoginSuccess(userDataFound);
     } else {
-      setErrorMsg("Password salah! Silakan periksa kembali.");
+      setErrorMsg("Password salah! Silakan periksa kembali atau gunakan link Lupa Password.");
     }
   };
 
-  // LANGKAH 3: SIMPAN PENDAFTARAN LENGKAP
+  // LANGKAH 3: SIMPAN PENDAFTARAN LENGKAP (+ EMAIL)
   const handleRegisterSubmit = async () => {
-    if (!nama || !alamatKota || !provinsi || !telegram || !namaBank || !noRekening || !password) {
-      return setErrorMsg("Mohon lengkapi seluruh data pendaftaran!");
+    if (!nama || !email || !alamatKota || !provinsi || !telegram || !namaBank || !noRekening || !password) {
+      return setErrorMsg("Mohon lengkapi seluruh kolom pendaftaran termasuk email!");
     }
     if (password.length < 6) {
       return setErrorMsg("Password minimal 6 karakter!");
@@ -651,6 +660,7 @@ function AuthView({ onLoginSuccess }) {
     const newUser = {
       no_ktp: noKtp.trim(),
       no_hp: noHp.trim(),
+      email: email.trim().toLowerCase(),
       nama: nama.trim(),
       kota: alamatKota.trim(),
       provinsi: provinsi.trim(),
@@ -665,11 +675,76 @@ function AuthView({ onLoginSuccess }) {
 
     try {
       const docRef = await addDoc(collection(db, "users"), newUser);
-      alert(" Pendaftaran berhasil! Selamat datang di Mitra Berkah.");
+      alert("✅ Pendaftaran berhasil! Selamat datang di Mitra Berkah.");
       onLoginSuccess({ id: docRef.id, ...newUser });
     } catch (err) {
       console.error(err);
       setErrorMsg("Gagal menyimpan data: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // LANGKAH 4: MINTA OTP RESET PASSWORD KE EMAIL / CS ADMIN
+  const handleRequestOtp = async () => {
+    if (!email) return setErrorMsg("Ketikkan alamat email akun Anda!");
+    setLoading(true);
+    setErrorMsg("");
+
+    try {
+      const q = query(collection(db, "users"), where("email", "==", email.trim().toLowerCase()));
+      const snap = await getDocs(q);
+
+      if (snap.empty) {
+        setLoading(false);
+        return setErrorMsg("Email tersebut tidak terdaftar di sistem.");
+      }
+
+      const docU = snap.docs[0];
+      const uData = { id: docU.id, ...docU.data() };
+      setTargetUser(uData);
+
+      // Generate 6 Digit OTP
+      const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+      setGeneratedOtp(otpCode);
+
+      // Simpan permintaan OTP ke koleksi Firestore
+      await addDoc(collection(db, "password_resets"), {
+        user_id: uData.id,
+        email: uData.email,
+        nama: uData.nama,
+        otp: otpCode,
+        status: "PENDING",
+        created_at: new Date().toISOString()
+      });
+
+      alert(`✅ Kode OTP Permintaan Reset: ${otpCode}\n\nPermintaan telah diteruskan ke Email & CS Admin.`);
+      setStep(5);
+    } catch (err) {
+      setErrorMsg("Gagal meminta OTP: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // LANGKAH 5: KONFIRMASI OTP & UPDATE PASSWORD BARU
+  const handleConfirmResetPassword = async () => {
+    if (!inputOtp || !passwordBaru) return setErrorMsg("Lengkapi Kode OTP dan Password Baru!");
+    if (inputOtp.trim() !== generatedOtp.trim()) return setErrorMsg("Kode OTP salah atau tidak sesuai!");
+    if (passwordBaru.length < 6) return setErrorMsg("Password baru minimal 6 karakter!");
+
+    setLoading(true);
+    setErrorMsg("");
+
+    try {
+      await updateDoc(doc(db, "users", targetUser.id), { password: passwordBaru });
+      alert("🎉 Kata sandi Anda berhasil diperbarui! Silakan masuk kembali.");
+      setStep(1);
+      setPassword("");
+      setPasswordBaru("");
+      setInputOtp("");
+    } catch (err) {
+      setErrorMsg("Gagal memperbarui password: " + err.message);
     } finally {
       setLoading(false);
     }
@@ -720,7 +795,12 @@ function AuthView({ onLoginSuccess }) {
               />
             </div>
 
-            <p className="text-[11px] text-stone-400">*Sistem otomatis mendeteksi status pendaftaran akun.</p>
+            <div className="flex justify-between items-center text-xs">
+              <span className="text-[11px] text-stone-400">*Deteksi otomatis KTP / WA.</span>
+              <button onClick={() => { setStep(4); setErrorMsg(""); }} className="text-blue-900 font-bold hover:underline">
+                Lupa Password?
+              </button>
+            </div>
 
             <button
               onClick={handleCekKtpDanWA}
@@ -747,9 +827,15 @@ function AuthView({ onLoginSuccess }) {
                 type="password"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
-                placeholder=""
+                placeholder="••••••••"
                 className="w-full mt-1 p-2.5 text-xs border border-stone-200 rounded-xl outline-none"
               />
+            </div>
+
+            <div className="text-right">
+              <button onClick={() => { setEmail(userDataFound?.email || ""); setStep(4); setErrorMsg(""); }} className="text-xs text-blue-900 font-bold hover:underline">
+                Lupa Password Akun Ini?
+              </button>
             </div>
 
             <button
@@ -763,12 +849,12 @@ function AuthView({ onLoginSuccess }) {
               onClick={() => { setStep(1); setPassword(""); setErrorMsg(""); }}
               className="w-full py-2 text-xs text-stone-500 font-semibold hover:underline"
             >
-               Kembali
+              ← Kembali
             </button>
           </div>
         )}
 
-        {/* STEP 3: AKUN BARU -> FORMULIR PENDAFTARAN LENGKAP */}
+        {/* STEP 3: AKUN BARU -> FORMULIR PENDAFTARAN LENGKAP (+ EMAIL) */}
         {step === 3 && (
           <div className="space-y-2.5 max-h-[72vh] overflow-y-auto pr-1">
             <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-xl">
@@ -782,6 +868,17 @@ function AuthView({ onLoginSuccess }) {
                 value={nama}
                 onChange={e => setNama(e.target.value)}
                 placeholder="Siti Aminah"
+                className="w-full mt-0.5 p-2 text-xs border border-stone-200 rounded-xl"
+              />
+            </div>
+
+            <div>
+              <label className="text-[11px] font-bold text-stone-700">Alamat Email Aktif</label>
+              <input
+                type="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                placeholder="nama@email.com"
                 className="w-full mt-0.5 p-2 text-xs border border-stone-200 rounded-xl"
               />
             </div>
@@ -861,7 +958,103 @@ function AuthView({ onLoginSuccess }) {
               onClick={() => { setStep(1); setErrorMsg(""); }}
               className="w-full py-1.5 text-xs text-stone-500 font-semibold hover:underline"
             >
-               Kembali
+              ← Kembali
+            </button>
+          </div>
+        )}
+
+        {/* STEP 4: PERMINTAAN KODE OTP LUPA PASSWORD */}
+        {step === 4 && (
+          <div className="space-y-3">
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl">
+              <p className="text-xs text-amber-900 font-bold flex items-center gap-1"><KeyRound size={14} /> Reset Sandi Akun</p>
+              <p className="text-[11px] text-stone-600 mt-1">Masukkan alamat email Anda untuk menerima permintaan verifikasi OTP reset sandi.</p>
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-stone-700">Alamat Email Terdaftar</label>
+              <input
+                type="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                placeholder="nama@email.com"
+                className="w-full mt-1 p-2.5 text-xs border border-stone-200 rounded-xl outline-none focus:border-blue-900"
+              />
+            </div>
+
+            <button
+              onClick={handleRequestOtp}
+              disabled={loading}
+              className="w-full py-3 bg-blue-900 hover:bg-blue-950 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5"
+            >
+              {loading ? "Mengirim OTP..." : "Kirim Permintaan OTP"} <Mail size={14} />
+            </button>
+
+            <div className="p-2.5 bg-stone-50 border rounded-xl text-center">
+              <p className="text-[11px] text-stone-500">Butuh bantuan manual dari Staff?</p>
+              <a
+                href={`https://wa.me/628111111111?text=Halo%20Admin%20/%20CS,%20saya%20minta%20bantuan%20reset%20password%20akun%20email:%20${email}`}
+                target="_blank"
+                rel="noreferrer"
+                className="text-xs font-bold text-emerald-700 hover:underline inline-flex items-center gap-1 mt-1"
+              >
+                <Phone size={12} /> Hubungi CS / Admin di WhatsApp
+              </a>
+            </div>
+
+            <button
+              onClick={() => { setStep(1); setErrorMsg(""); }}
+              className="w-full py-1 text-xs text-stone-500 font-semibold hover:underline"
+            >
+              ← Kembali ke Menu Masuk
+            </button>
+          </div>
+        )}
+
+        {/* STEP 5: KONFIRMASI KODE OTP & BUAT PASSWORD BARU */}
+        {step === 5 && (
+          <div className="space-y-3">
+            <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
+              <p className="text-xs text-emerald-900 font-bold">Verifikasi OTP & Sandi Baru</p>
+              <p className="text-[11px] text-stone-600 mt-0.5">Masukkan kode 6 digit OTP yang telah dibuat serta tentukan kata sandi baru.</p>
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-stone-700">Kode OTP (6 Digit)</label>
+              <input
+                type="text"
+                maxLength={6}
+                value={inputOtp}
+                onChange={e => setInputOtp(e.target.value)}
+                placeholder="123456"
+                className="w-full mt-1 p-2.5 text-xs font-mono text-center tracking-widest border border-stone-200 rounded-xl outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-stone-700">Password Baru</label>
+              <input
+                type="password"
+                value={passwordBaru}
+                onChange={e => setPasswordBaru(e.target.value)}
+                placeholder="Minimal 6 karakter"
+                className="w-full mt-1 p-2.5 text-xs border border-stone-200 rounded-xl outline-none"
+              />
+            </div>
+
+            <button
+              onClick={handleConfirmResetPassword}
+              disabled={loading}
+              className="w-full py-3 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5"
+            >
+              {loading ? "Memproses..." : "Konfirmasi & Simpan Sandi Baru"}
+            </button>
+
+            <button
+              onClick={() => { setStep(4); setErrorMsg(""); }}
+              className="w-full py-1 text-xs text-stone-500 font-semibold hover:underline"
+            >
+              ← Kirim Ulang OTP
             </button>
           </div>
         )}
