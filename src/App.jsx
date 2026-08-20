@@ -9,11 +9,10 @@ import {
   Edit, Trash2, ShieldAlert, CheckCircle2, XCircle, Menu, X,
   Shield, Headset, Crown, ArrowRight, Lock, Phone, HelpCircle,
   Copy, AlertCircle, ShoppingCart, Tag, Filter, Search, Calendar,
-  ArrowDownLeft, ArrowUpRight, StickyNote
+  ArrowDownLeft, ArrowUpRight, StickyNote, Send
 } from "lucide-react";
 
 // ---------------- 1. KONFIGURASI FIREBASE ----------------
-
 const firebaseConfig = {
   apiKey: "AIzaSyAZxR-pubY1ysyPKG5jGvWViOK71W9jtAQ",
   authDomain: "mitraberkahaffvercelapp.firebaseapp.com",
@@ -22,7 +21,6 @@ const firebaseConfig = {
   messagingSenderId: "238463383711",
   appId: "1:238463383711:web:e9b2836661bcbf6e25caaa"
 };
-
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
@@ -137,7 +135,7 @@ export default function App() {
       </header>
 
       <div className="flex-1 flex max-w-5xl w-full mx-auto">
-        {/* 2. SIDEBAR NAVIGATION (AUTO-HIDE) */}
+        {/* 2. SIDEBAR NAVIGATION (AUTO-HIDE ON CLICK) */}
         <aside
           className={`fixed inset-y-0 left-0 z-40 w-64 bg-slate-900 text-white p-5 transform transition-transform duration-200 ease-in-out md:static md:translate-x-0 ${
             sidebarOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full"
@@ -161,6 +159,7 @@ export default function App() {
               <Sparkles size={16} /> Beranda
             </button>
 
+            {/* Menu Khusus Mitra / User */}
             {role === "user" && (
               <>
                 <button
@@ -193,6 +192,7 @@ export default function App() {
               </>
             )}
 
+            {/* Menu Khusus Staff (CS, Admin, Superadmin) */}
             {['admin', 'superadmin', 'cs'].includes(role) && (
               <button
                 onClick={() => { setActiveTab("data-users"); setSidebarOpen(false); }}
@@ -202,6 +202,7 @@ export default function App() {
               </button>
             )}
 
+            {/* Menu Admin & Superadmin */}
             {['admin', 'superadmin'].includes(role) && (
               <button
                 onClick={() => { setActiveTab("kelola-produk"); setSidebarOpen(false); }}
@@ -222,7 +223,7 @@ export default function App() {
           </nav>
         </aside>
 
-        {/* 3. MAIN CONTENT */}
+        {/* 3. MAIN CONTENT AREA */}
         <main className="flex-1 p-4 md:p-6 w-full space-y-5">
           {activeTab === "beranda" && (
             <div className="space-y-4">
@@ -234,16 +235,18 @@ export default function App() {
                     <p className="text-xs text-blue-200">Saldo Dompet Anda</p>
                     <p className="font-mono text-3xl font-bold text-amber-300">{rupiah(currentUser.saldo)}</p>
                   </div>
-                  <div className="flex gap-2">
-                    <button onClick={() => setActiveTab("produk-jual")} className="px-4 py-2 bg-amber-500 hover:bg-amber-600 rounded-xl text-xs font-bold text-white transition">Mulai Jualan</button>
-                    <button onClick={() => setActiveTab("produk-beli")} className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-xl text-xs font-bold text-white transition">Beli Sendiri</button>
-                  </div>
+                  {role === "user" && (
+                    <div className="flex gap-2">
+                      <button onClick={() => setActiveTab("produk-jual")} className="px-4 py-2 bg-amber-500 hover:bg-amber-600 rounded-xl text-xs font-bold text-white transition">Mulai Jualan</button>
+                      <button onClick={() => setActiveTab("produk-beli")} className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-xl text-xs font-bold text-white transition">Beli Sendiri</button>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
           )}
 
-          {/* LIST PRODUK DIJUAL (AFFILIATE) */}
+          {/* LIST PRODUK DIJUAL */}
           {activeTab === "produk-jual" && (
             <div className="space-y-3">
               <div>
@@ -282,7 +285,7 @@ export default function App() {
                             await updateDoc(doc(db, "users", currentUser.id), { saldo: saldoBaru });
                           } catch (e) {}
                           await catatTransaksi("JUAL", p.potensi_komisi, `Komisi Penjualan: ${p.nama_produk}`, currentUser.id, saldoBaru);
-                          alert(`🎉 Penjualan berhasil! Saldo bertambah ${rupiah(p.potensi_komisi)}`);
+                          alert(` Penjualan berhasil! Saldo bertambah ${rupiah(p.potensi_komisi)}`);
                         }}
                         className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold"
                       >
@@ -295,12 +298,12 @@ export default function App() {
             </div>
           )}
 
-          {/* LIST BELI SENDIRI (HARGA NORMAL TANPA KOMISI/CASHBACK) */}
+          {/* LIST BELI SENDIRI */}
           {activeTab === "produk-beli" && (
             <div className="space-y-3">
               <div>
                 <p className="text-lg font-bold text-stone-900">Beli Produk untuk Sendiri</p>
-                <p className="text-xs text-stone-500">Beli produk dengan harga normal tanpa komisi dan tanpa cashback.</p>
+                <p className="text-xs text-stone-500">Beli produk dengan harga normal tanpa komisi dan cashback.</p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -475,7 +478,7 @@ function DataUsersFilterPanel({ usersList, getRoleBadge }) {
   const [roleFilter, setRoleFilter] = useState("ALL");
 
   const filteredUsers = usersList.filter(u => {
-    const matchSearch = u.nama?.toLowerCase().includes(searchTerm.toLowerCase()) || u.no_hp?.includes(searchTerm);
+    const matchSearch = u.nama?.toLowerCase().includes(searchTerm.toLowerCase()) || u.no_hp?.includes(searchTerm) || u.no_ktp?.includes(searchTerm);
     const matchRole = roleFilter === "ALL" ? true : (u.role || "user") === roleFilter;
     return matchSearch && matchRole;
   });
@@ -484,7 +487,7 @@ function DataUsersFilterPanel({ usersList, getRoleBadge }) {
     <div className="space-y-3">
       <div>
         <p className="text-lg font-bold text-stone-900">Index & Data Pengguna ({filteredUsers.length})</p>
-        <p className="text-xs text-stone-500">Pencarian nama atau nomor WhatsApp.</p>
+        <p className="text-xs text-stone-500">Pencarian berdasarkan KTP, Nama, atau Nomor WhatsApp.</p>
       </div>
 
       <div className="flex flex-col md:flex-row gap-2">
@@ -493,7 +496,7 @@ function DataUsersFilterPanel({ usersList, getRoleBadge }) {
           <input
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
-            placeholder="Cari nama atau nomor WhatsApp..."
+            placeholder="Cari KTP, Nama, atau No WhatsApp..."
             className="w-full pl-9 pr-3 py-2 text-xs border border-stone-200 rounded-xl bg-white outline-none"
           />
         </div>
@@ -513,23 +516,41 @@ function DataUsersFilterPanel({ usersList, getRoleBadge }) {
 
       <div className="space-y-2">
         {filteredUsers.map(u => (
-          <div key={u.id} className="p-3.5 rounded-xl bg-white border border-stone-200 flex items-center justify-between gap-2">
+          <div key={u.id} className="p-3.5 rounded-xl bg-white border border-stone-200 flex flex-col md:flex-row md:items-center justify-between gap-2">
             <div>
               <div className="flex items-center gap-2">
                 <span className="font-bold text-sm">{u.nama}</span>
                 {getRoleBadge(u.role || "user")}
               </div>
-              <p className="text-xs text-stone-500 font-mono mt-0.5">WA: {u.no_hp} | Saldo: <span className="font-bold text-emerald-700">{rupiah(u.saldo)}</span></p>
+              <p className="text-xs text-stone-500 font-mono mt-0.5">
+                KTP: {u.no_ktp || "-"} | WA: {u.no_hp} | Telegram: @{u.telegram || "-"}
+              </p>
+              <p className="text-xs text-stone-500 font-mono">
+                Domisili: {u.kota || "-"}, {u.provinsi || "-"} | Bank: {u.nama_bank || "-"} ({u.no_rekening || "-"})
+              </p>
+              <p className="text-xs text-emerald-700 font-bold font-mono mt-0.5">Saldo: {rupiah(u.saldo)}</p>
             </div>
 
-            <a
-              href={`https://wa.me/${u.no_hp?.replace(/^0/, '62')}`}
-              target="_blank"
-              rel="noreferrer"
-              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold flex items-center gap-1"
-            >
-              <Phone size={12} /> WhatsApp
-            </a>
+            <div className="flex items-center gap-2 mt-2 md:mt-0">
+              {u.telegram && (
+                <a
+                  href={`https://t.me/${u.telegram}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="px-3 py-1.5 bg-sky-500 hover:bg-sky-600 text-white rounded-lg text-xs font-bold flex items-center gap-1"
+                >
+                  <Send size={12} /> Telegram
+                </a>
+              )}
+              <a
+                href={`https://wa.me/${u.no_hp?.replace(/^0/, '62')}`}
+                target="_blank"
+                rel="noreferrer"
+                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold flex items-center gap-1"
+              >
+                <Phone size={12} /> WhatsApp
+              </a>
+            </div>
           </div>
         ))}
       </div>
@@ -537,47 +558,64 @@ function DataUsersFilterPanel({ usersList, getRoleBadge }) {
   );
 }
 
-
-
-// ---------------- SMART AUTH STEP-BY-STEP (INDEX KTP 20 DIGIT) ----------------
+// ---------------- 6. SMART AUTH (CEK KTP & CEK WA -> LOGIN / REGISTRASI) ----------------
 function AuthView({ onLoginSuccess }) {
-  // Step: 1 (Cek KTP) -> 2 (Login Password) -> 3 (Reg: Nama & WA) -> 4 (Reg: Kota & Telegram) -> 5 (Reg: Password)
+  // Step: 1 (Cek KTP & WA) -> 2 (Login Password) -> 3 (Pendaftaran Lengkap)
   const [step, setStep] = useState(1);
   const [noKtp, setNoKtp] = useState("");
+  const [noHp, setNoHp] = useState("");
   const [password, setPassword] = useState("");
   
-  // Data Form Registrasi Step-by-Step
+  // Data Form Registrasi Lengkap
   const [nama, setNama] = useState("");
-  const [noHp, setNoHp] = useState("");
   const [alamatKota, setAlamatKota] = useState("");
+  const [provinsi, setProvinsi] = useState("");
   const [telegram, setTelegram] = useState("");
+  const [namaBank, setNamaBank] = useState("");
+  const [noRekening, setNoRekening] = useState("");
 
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [userDataFound, setUserDataFound] = useState(null);
 
-  // 1. LANGKAH 1: PERIKSA NOMOR KTP 20 DIGIT
-  const handleCekKTP = async () => {
+  // LANGKAH 1: PERIKSA NOMOR KTP & NO WHATSAPP
+  const handleCekKtpDanWA = async () => {
     const cleanKtp = noKtp.trim();
-    if (!cleanKtp || cleanKtp.length !== 20 || !/^\d+$/.test(cleanKtp)) {
-      return setErrorMsg("Nomor KTP harus berupa 20 digit angka!");
+    const cleanWa = noHp.trim();
+
+    if (!cleanKtp || cleanKtp.length < 16) {
+      return setErrorMsg("Masukkan nomor KTP yang valid!");
     }
+    if (!cleanWa || cleanWa.length < 9) {
+      return setErrorMsg("Masukkan nomor WhatsApp yang valid!");
+    }
+
     setLoading(true);
     setErrorMsg("");
 
     try {
-      // Query pencarian berdasarkan indeks no_ktp
-      const q = query(collection(db, "users"), where("no_ktp", "==", cleanKtp));
-      const snap = await getDocs(q);
+      // Cari apakah KTP atau WA sudah ada di Firestore
+      const qKtp = query(collection(db, "users"), where("no_ktp", "==", cleanKtp));
+      const snapKtp = await getDocs(qKtp);
 
-      if (!snap.empty) {
-        // KTP TERDAFTAR -> Lanjut Form Password (Step 2)
-        const docUser = snap.docs[0];
+      if (!snapKtp.empty) {
+        // KTP DITEMUKAN -> Lanjut Login Password
+        const docUser = snapKtp.docs[0];
         setUserDataFound({ id: docUser.id, ...docUser.data() });
         setStep(2);
       } else {
-        // KTP BELUM ADA -> Mulai Pendaftaran Step 3
-        setStep(3);
+        // Cek juga nomor WA
+        const qWa = query(collection(db, "users"), where("no_hp", "==", cleanWa));
+        const snapWa = await getDocs(qWa);
+
+        if (!snapWa.empty) {
+          const docUser = snapWa.docs[0];
+          setUserDataFound({ id: docUser.id, ...docUser.data() });
+          setStep(2);
+        } else {
+          // KTP & WA BELUM ADA -> Lanjut Isi Formulir Pendaftaran
+          setStep(3);
+        }
       }
     } catch (err) {
       console.error(err);
@@ -587,7 +625,7 @@ function AuthView({ onLoginSuccess }) {
     }
   };
 
-  // 2. LANGKAH 2: PROSES LOGIN PASSWORD
+  // LANGKAH 2: PROSES LOGIN PASSWORD
   const handleLoginSubmit = () => {
     if (!password) return setErrorMsg("Masukkan password Anda.");
     
@@ -598,23 +636,30 @@ function AuthView({ onLoginSuccess }) {
     }
   };
 
-  // 3. SELESAIKAN PENDAFTARAN (LANGKAH TERAKHIR)
+  // LANGKAH 3: SIMPAN PENDAFTARAN LENGKAP
   const handleRegisterSubmit = async () => {
-    if (!password || password.length < 6) {
+    if (!nama || !alamatKota || !provinsi || !telegram || !namaBank || !noRekening || !password) {
+      return setErrorMsg("Mohon lengkapi seluruh data pendaftaran!");
+    }
+    if (password.length < 6) {
       return setErrorMsg("Password minimal 6 karakter!");
     }
+
     setLoading(true);
     setErrorMsg("");
 
     const newUser = {
-      no_ktp: noKtp.trim(), // Index Utama 20 Digit
-      nama: nama.trim(),
+      no_ktp: noKtp.trim(),
       no_hp: noHp.trim(),
+      nama: nama.trim(),
       kota: alamatKota.trim(),
-      telegram: telegram.trim().replace(/^@/, ""), // Hapus @ jika ada
+      provinsi: provinsi.trim(),
+      telegram: telegram.trim().replace(/^@/, ""),
+      nama_bank: namaBank.trim(),
+      no_rekening: noRekening.trim(),
       password: password,
-      role: "user",
-      saldo: 0,
+      role: "user", // Default Role
+      saldo: 0,     // Default Saldo
       created_at: new Date().toISOString()
     };
 
@@ -624,7 +669,7 @@ function AuthView({ onLoginSuccess }) {
       onLoginSuccess({ id: docRef.id, ...newUser });
     } catch (err) {
       console.error(err);
-      setErrorMsg("Gagal menyimpan pendaftaran: " + err.message);
+      setErrorMsg("Gagal menyimpan data: " + err.message);
     } finally {
       setLoading(false);
     }
@@ -640,7 +685,7 @@ function AuthView({ onLoginSuccess }) {
             <Sparkles size={20} className="text-amber-400" />
           </div>
           <h2 className="text-xl font-bold text-stone-900">Mitra Berkah Affiliate</h2>
-          <p className="text-xs text-stone-500">Pusat Bimbingan Komisi & Afiliasi</p>
+          <p className="text-xs text-stone-500">Platform Gotong Royong Komisi & Bimbingan</p>
         </div>
 
         {errorMsg && (
@@ -650,263 +695,50 @@ function AuthView({ onLoginSuccess }) {
           </div>
         )}
 
-        {/* STEP 1: PERIKSA NO KTP 20 DIGIT */}
+        {/* STEP 1: PERIKSA NO KTP & WHATSAPP */}
         {step === 1 && (
           <div className="space-y-3">
             <div>
-              <div className="flex justify-between items-center">
-                <label className="text-xs font-bold text-stone-700">Nomor KTP (20 Digit)</label>
-                <span className="text-[10px] font-mono text-stone-400">{noKtp.length}/20</span>
-              </div>
+              <label className="text-xs font-bold text-stone-700">Nomor KTP</label>
               <input
                 type="text"
-                maxLength={20}
                 value={noKtp}
                 onChange={e => setNoKtp(e.target.value.replace(/\D/g, ""))}
-                placeholder="12345678901234567890"
-                className="w-full mt-1 p-3 text-sm font-mono border border-stone-200 rounded-xl outline-none focus:border-blue-900 tracking-wider"
-              />
-              <p className="text-[11px] text-stone-400 mt-1">*Indeks nomor KTP unik untuk identifikasi akun.</p>
-            </div>
-            <button
-              onClick={handleCekKTP}
-              disabled={loading || noKtp.length !== 20}
-              className="w-full py-3 bg-blue-900 hover:bg-blue-950 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 disabled:opacity-50"
-            >
-              {loading ? "Memeriksa KTP..." : "Lanjutkan"} <ArrowRight size={14} />
-            </button>
-          </div>
-        )}
-
-        {/* STEP 2: KTP SUDAH TERDAFTAR -> FORM LOGIN PASSWORD */}
-        {step === 2 && (
-          <div className="space-y-3">
-            <div className="p-3 bg-blue-50 border border-blue-100 rounded-xl">
-              <p className="text-xs text-blue-900 font-bold">KTP Terdaftar Ditemukan!</p>
-              <p className="text-xs text-stone-600 mt-0.5">Nama: <strong>{userDataFound?.nama}</strong></p>
-              <p className="text-[11px] text-stone-500 font-mono">KTP: {noKtp}</p>
-            </div>
-
-            <div>
-              <label className="text-xs font-bold text-stone-700">Masukkan Password Akun</label>
-              <input
-                type="password"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                placeholder=""
-                className="w-full mt-1 p-3 text-sm border border-stone-200 rounded-xl outline-none"
-              />
-            </div>
-
-            <button
-              onClick={handleLoginSubmit}
-              className="w-full py-3 bg-blue-900 hover:bg-blue-950 text-white rounded-xl text-xs font-bold transition"
-            >
-              Masuk ke Dashboard
-            </button>
-
-            <button
-              onClick={() => { setStep(1); setPassword(""); setErrorMsg(""); }}
-              className="w-full py-2 text-xs text-stone-500 font-semibold hover:underline"
-            >
-               Ganti Nomor KTP
-            </button>
-          </div>
-        )}
-
-        {/* STEP 3: REGISTRASI LANGKAH 1 (NAMA & WHATSAPP) */}
-        {step === 3 && (
-          <div className="space-y-3">
-            <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-xl">
-              <p className="text-xs text-amber-900 font-bold">Pendaftaran Langkah 1 / 3</p>
-              <p className="text-[11px] text-stone-600">KTP terkonfirmasi baru. Isi data diri awal Anda.</p>
-            </div>
-
-            <div>
-              <label className="text-xs font-bold text-stone-700">Nama Lengkap Sesuai KTP</label>
-              <input
-                value={nama}
-                onChange={e => setNama(e.target.value)}
-                placeholder="Contoh: Siti Aminah"
-                className="w-full mt-1 p-2.5 text-xs border border-stone-200 rounded-xl"
+                placeholder="Masukkan nomor KTP"
+                className="w-full mt-1 p-2.5 text-xs font-mono border border-stone-200 rounded-xl outline-none focus:border-blue-900"
               />
             </div>
 
             <div>
-              <label className="text-xs font-bold text-stone-700">Nomor WhatsApp Aktif</label>
-              <input
-                type="tel"
-                value={noHp}
-                onChange={e => setNoHp(e.target.value)}
-                placeholder="081234567890"
-                className="w-full mt-1 p-2.5 text-xs border border-stone-200 rounded-xl"
-              />
-            </div>
-
-            <button
-              onClick={() => {
-                if (!nama.trim() || !noHp.trim()) return setErrorMsg("Nama dan No WhatsApp wajib diisi!");
-                setErrorMsg("");
-                setStep(4);
-              }}
-              className="w-full py-3 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5"
-            >
-              Lanjut ke Langkah 2 <ArrowRight size={14} />
-            </button>
-
-            <button
-              onClick={() => { setStep(1); setErrorMsg(""); }}
-              className="w-full py-1.5 text-xs text-stone-500 font-semibold hover:underline"
-            >
-               Batal
-            </button>
-          </div>
-        )}
-
-        {/* STEP 4: REGISTRASI LANGKAH 2 (KOTA & TELEGRAM PUSAT BIMBINGAN) */}
-        {step === 4 && (
-          <div className="space-y-3">
-            <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-xl">
-              <p className="text-xs text-amber-900 font-bold">Pendaftaran Langkah 2 / 3</p>
-              <p className="text-[11px] text-stone-600">Lokasi & akun Telegram untuk pusat materi & bimbingan.</p>
-            </div>
-
-            <div>
-              <label className="text-xs font-bold text-stone-700">Kota / Kabupaten Domisili</label>
-              <input
-                value={alamatKota}
-                onChange={e => setAlamatKota(e.target.value)}
-                placeholder="Contoh: Bandung"
-                className="w-full mt-1 p-2.5 text-xs border border-stone-200 rounded-xl"
-              />
-            </div>
-
-            <div>
-              <label className="text-xs font-bold text-stone-700">Username Telegram (Pusat Bimbingan)</label>
-              <input
-                value={telegram}
-                onChange={e => setTelegram(e.target.value)}
-                placeholder="username_tele (tanpa @)"
-                className="w-full mt-1 p-2.5 text-xs border border-stone-200 rounded-xl"
-              />
-              <p className="text-[10px] text-stone-400 mt-1">*Digunakan senior mentor untuk memasukkan Anda ke grup bimbingan.</p>
-            </div>
-
-            <button
-              onClick={() => {
-                if (!alamatKota.trim() || !telegram.trim()) return setErrorMsg("Kota dan Telegram wajib diisi!");
-                setErrorMsg("");
-                setStep(5);
-              }}
-              className="w-full py-3 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5"
-            >
-              Lanjut ke Buat Password <ArrowRight size={14} />
-            </button>
-
-            <button
-              onClick={() => { setStep(3); setErrorMsg(""); }}
-              className="w-full py-1.5 text-xs text-stone-500 font-semibold hover:underline"
-            >
-               Kembali ke Langkah 1
-            </button>
-          </div>
-        )}
-
-        {/* STEP 5: REGISTRASI LANGKAH 3 (BUAT PASSWORD & SELESAI) */}
-        {step === 5 && (
-          <div className="space-y-3">
-            <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl">
-              <p className="text-xs text-emerald-900 font-bold">Langkah Terakhir: Keamanan Akun</p>
-              <p className="text-[11px] text-stone-600">Buat kata sandi untuk masuk ke dashboard ke depannya.</p>
-            </div>
-
-            <div>
-              <label className="text-xs font-bold text-stone-700">Buat Password Baru</label>
-              <input
-                type="password"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                placeholder="Minimal 6 karakter"
-                className="w-full mt-1 p-2.5 text-xs border border-stone-200 rounded-xl outline-none"
-              />
-            </div>
-
-            <button
-              onClick={handleRegisterSubmit}
-              disabled={loading}
-              className="w-full py-3 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold transition"
-            >
-              {loading ? "Menyimpan Akun..." : "Selesaikan Pendaftaran (Gratis)"}
-            </button>
-
-            <button
-              onClick={() => { setStep(4); setErrorMsg(""); }}
-              className="w-full py-1.5 text-xs text-stone-500 font-semibold hover:underline"
-            >
-               Kembali ke Langkah 2
-            </button>
-          </div>
-        )}
-
-      </div>
-    </div>
-  );
-}
-
-
-
-
-
-  return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-[#F8F9FA] font-sans">
-      <div className="w-full max-w-sm p-6 bg-white rounded-3xl border border-stone-200 shadow-md">
-        
-        <div className="text-center mb-5">
-          <div className="w-10 h-10 bg-blue-900 text-white rounded-2xl flex items-center justify-center mx-auto mb-2">
-            <Sparkles size={20} className="text-amber-400" />
-          </div>
-          <h2 className="text-xl font-bold text-stone-900">Mitra Berkah Affiliate</h2>
-          <p className="text-xs text-stone-500">Platform Gotong Royong Komisi Affiliate</p>
-        </div>
-
-        {errorMsg && (
-          <div className="mb-4 p-3 bg-red-50 text-red-700 text-xs rounded-xl flex items-center gap-1.5">
-            <AlertCircle size={14} className="shrink-0" /> 
-            <span>{errorMsg}</span>
-          </div>
-        )}
-
-        {/* STEP 1: PERIKSA NO WHATSAPP */}
-        {step === 1 && (
-          <div className="space-y-3">
-            <div>
-              <label className="text-xs font-bold text-stone-700">Nomor WhatsApp Aktif</label>
+              <label className="text-xs font-bold text-stone-700">Nomor WhatsApp</label>
               <input
                 type="tel"
                 value={noHp}
                 onChange={e => setNoHp(e.target.value)}
                 placeholder="Contoh: 081234567890"
-                className="w-full mt-1 p-3 text-sm border border-stone-200 rounded-xl outline-none focus:border-blue-900"
+                className="w-full mt-1 p-2.5 text-xs border border-stone-200 rounded-xl outline-none focus:border-blue-900"
               />
-              <p className="text-[11px] text-stone-400 mt-1">*Sistem otomatis mendeteksi akun lama / baru.</p>
             </div>
+
+            <p className="text-[11px] text-stone-400">*Sistem otomatis mendeteksi status pendaftaran akun.</p>
+
             <button
-              onClick={handleCekWA}
+              onClick={handleCekKtpDanWA}
               disabled={loading}
-              className="w-full py-3 bg-blue-900 hover:bg-blue-950 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5"
+              className="w-full py-3 bg-blue-900 hover:bg-blue-950 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 disabled:opacity-50"
             >
-              {loading ? "Memeriksa Nomor..." : "Lanjutkan"} <ArrowRight size={14} />
+              {loading ? "Memeriksa Akun..." : "Lanjutkan"} <ArrowRight size={14} />
             </button>
           </div>
         )}
 
-        {/* STEP 2: NOMOR WA TERDAFTAR -> LOGIN */}
+        {/* STEP 2: AKUN DITEMUKAN -> LOGIN PASSWORD */}
         {step === 2 && (
           <div className="space-y-3">
             <div className="p-3 bg-blue-50 border border-blue-100 rounded-xl">
               <p className="text-xs text-blue-900 font-bold">Akun Terdaftar Ditemukan!</p>
-              <p className="text-xs text-stone-600 mt-0.5">Nama: <strong>{userDataFound?.nama}</strong></p>
-              <p className="text-[11px] text-stone-500 font-mono">WA: {noHp}</p>
+              <p className="text-xs text-stone-700 mt-0.5">Nama: <strong>{userDataFound?.nama}</strong></p>
+              <p className="text-[11px] text-stone-500 font-mono">Role: {userDataFound?.role?.toUpperCase()}</p>
             </div>
 
             <div>
@@ -915,8 +747,8 @@ function AuthView({ onLoginSuccess }) {
                 type="password"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full mt-1 p-3 text-sm border border-stone-200 rounded-xl outline-none"
+                placeholder=""
+                className="w-full mt-1 p-2.5 text-xs border border-stone-200 rounded-xl outline-none"
               />
             </div>
 
@@ -931,17 +763,17 @@ function AuthView({ onLoginSuccess }) {
               onClick={() => { setStep(1); setPassword(""); setErrorMsg(""); }}
               className="w-full py-2 text-xs text-stone-500 font-semibold hover:underline"
             >
-              ← Ganti Nomor WhatsApp
+               Kembali
             </button>
           </div>
         )}
 
-        {/* STEP 3: NOMOR WA BELUM ADA -> DAFTAR LENGKAP */}
+        {/* STEP 3: AKUN BARU -> FORMULIR PENDAFTARAN LENGKAP */}
         {step === 3 && (
-          <div className="space-y-2.5 max-h-[70vh] overflow-y-auto pr-1">
+          <div className="space-y-2.5 max-h-[72vh] overflow-y-auto pr-1">
             <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-xl">
-              <p className="text-xs text-amber-900 font-bold">Nomor Baru Terdeteksi</p>
-              <p className="text-[11px] text-stone-600">Lengkapi data di bawah ini untuk pendaftaran akun.</p>
+              <p className="text-xs text-amber-900 font-bold">Pendaftaran Akun Baru</p>
+              <p className="text-[11px] text-stone-600">Lengkapi identitas untuk penerimaan komisi & bimbingan.</p>
             </div>
 
             <div>
@@ -954,38 +786,49 @@ function AuthView({ onLoginSuccess }) {
               />
             </div>
 
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-[11px] font-bold text-stone-700">Kota / Kab</label>
+                <input
+                  value={alamatKota}
+                  onChange={e => setAlamatKota(e.target.value)}
+                  placeholder="Bandung"
+                  className="w-full mt-0.5 p-2 text-xs border border-stone-200 rounded-xl"
+                />
+              </div>
+              <div>
+                <label className="text-[11px] font-bold text-stone-700">Provinsi</label>
+                <input
+                  value={provinsi}
+                  onChange={e => setProvinsi(e.target.value)}
+                  placeholder="Jawa Barat"
+                  className="w-full mt-0.5 p-2 text-xs border border-stone-200 rounded-xl"
+                />
+              </div>
+            </div>
+
             <div>
-              <label className="text-[11px] font-bold text-stone-700">Buat Password Akun</label>
+              <label className="text-[11px] font-bold text-stone-700">Username Telegram (Pusat Bimbingan)</label>
               <input
-                type="password"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                placeholder="Minimal 6 karakter"
+                value={telegram}
+                onChange={e => setTelegram(e.target.value)}
+                placeholder="username_tele (tanpa @)"
                 className="w-full mt-0.5 p-2 text-xs border border-stone-200 rounded-xl"
               />
             </div>
 
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="text-[11px] font-bold text-stone-700">Bank / E-Wallet</label>
-                <select
+                <label className="text-[11px] font-bold text-stone-700">Ketik Nama Bank / E-Wallet</label>
+                <input
                   value={namaBank}
                   onChange={e => setNamaBank(e.target.value)}
-                  className="w-full mt-0.5 p-2 text-xs border border-stone-200 rounded-xl bg-white"
-                >
-                  <option value="BCA">BCA</option>
-                  <option value="BRI">BRI</option>
-                  <option value="BNI">BNI</option>
-                  <option value="Mandiri">Mandiri</option>
-                  <option value="BSI">BSI</option>
-                  <option value="DANA">DANA</option>
-                  <option value="OVO">OVO</option>
-                  <option value="Gopay">GoPay</option>
-                  <option value="ShopeePay">ShopeePay</option>
-                </select>
+                  placeholder="BCA / BRI / DANA / OVO"
+                  className="w-full mt-0.5 p-2 text-xs border border-stone-200 rounded-xl"
+                />
               </div>
               <div>
-                <label className="text-[11px] font-bold text-stone-700">No. Rek / No. E-Wallet</label>
+                <label className="text-[11px] font-bold text-stone-700">Nomor Rekening</label>
                 <input
                   value={noRekening}
                   onChange={e => setNoRekening(e.target.value)}
@@ -996,22 +839,13 @@ function AuthView({ onLoginSuccess }) {
             </div>
 
             <div>
-              <label className="text-[11px] font-bold text-stone-700">Nama Pemilik Rekening / Penerima</label>
+              <label className="text-[11px] font-bold text-stone-700">Buat Password Akun</label>
               <input
-                value={namaPenerima}
-                onChange={e => setNamaPenerima(e.target.value)}
-                placeholder="Nama sesuai buku tabungan/akun"
-                className="w-full mt-0.5 p-2 text-xs border border-stone-200 rounded-xl"
-              />
-            </div>
-
-            <div>
-              <label className="text-[11px] font-bold text-stone-700">Alamat / Kota Domisili</label>
-              <input
-                value={alamatKota}
-                onChange={e => setAlamatKota(e.target.value)}
-                placeholder="Contoh: Bandung, Jawa Barat"
-                className="w-full mt-0.5 p-2 text-xs border border-stone-200 rounded-xl"
+                type="password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                placeholder="Minimal 6 karakter"
+                className="w-full mt-0.5 p-2 text-xs border border-stone-200 rounded-xl outline-none"
               />
             </div>
 
@@ -1027,7 +861,7 @@ function AuthView({ onLoginSuccess }) {
               onClick={() => { setStep(1); setErrorMsg(""); }}
               className="w-full py-1.5 text-xs text-stone-500 font-semibold hover:underline"
             >
-              ← Kembali
+               Kembali
             </button>
           </div>
         )}
@@ -1047,7 +881,7 @@ function KelolaProdukAdmin({ products, setProducts }) {
   const [link, setLink] = useState("");
 
   const handleAdd = async () => {
-    if (!nama || !potensi) return alert("Lengkapi data");
+    if (!nama || !potensi) return alert("Lengkapi data produk");
     const item = {
       nama_produk: nama,
       kategori,
@@ -1080,6 +914,7 @@ function KelolaProdukAdmin({ products, setProducts }) {
           <input type="number" value={harga} onChange={e => setHarga(e.target.value)} placeholder="Harga Produk (Rp)" className="p-2 text-xs border rounded-xl" />
         </div>
         <input type="number" value={potensi} onChange={e => setPotensi(e.target.value)} placeholder="Potensi Komisi (Rp)" className="w-full p-2 text-xs border rounded-xl" />
+        <input value={link} onChange={e => setLink(e.target.value)} placeholder="Link Affiliate / Toko" className="w-full p-2 text-xs border rounded-xl" />
         <button onClick={handleAdd} className="w-full py-2 bg-blue-900 text-white rounded-xl text-xs font-bold">Simpan Produk</button>
       </div>
     </div>
