@@ -89,13 +89,13 @@ export default function App() {
     }
   };
 
-  // Mesin Pencatat Log Aktivitas (Notifikasi ke Tim CS, Admin, Superadmin)
+  // Mesin Pencatat Log Aktivitas (Laporan Realtime Tim CS, Admin, Superadmin)
   const catatLogAktivitas = async (tipe, detail) => {
     const logItem = {
       user_id: currentUser?.id || "guest",
       nama_user: currentUser?.nama || "Tamu",
       no_hp: currentUser?.no_hp || "-",
-      tipe: tipe, // 'KLIK_LINK', 'SIMULASI_JUAL', 'REQ_WD', 'GANTI_PASS'
+      tipe: tipe, // 'SALIN_LINK', 'SIMULASI_JUAL', 'REQ_WD', 'UPDATE_PROFIL'
       detail: detail,
       waktu: new Date().toLocaleString("id-ID", { dateStyle: "short", timeStyle: "medium" }),
       timestamp: Date.now()
@@ -131,7 +131,7 @@ export default function App() {
   return (
     <div className="min-h-screen flex flex-col bg-[#F8F9FA] text-stone-800 font-sans">
       
-      {/* ---------------- 1. STICKY NOTE BAR ATAS LENGKAP DENGAN TAB PROFIL ---------------- */}
+      {/* ---------------- 1. STICKY NOTE BAR ATAS LENGKAP PROFIL ---------------- */}
       <header className="sticky top-0 z-30 bg-white border-b border-stone-200 px-4 py-2.5 shadow-xs">
         <div className="max-w-5xl mx-auto flex items-center justify-between gap-2">
           <div className="flex items-center gap-3">
@@ -191,7 +191,7 @@ export default function App() {
             className="p-3 bg-white/10 hover:bg-white/15 cursor-pointer rounded-2xl mb-4 transition border border-white/10"
           >
             <p className="text-[10px] text-white/60 uppercase font-semibold">Akun Terverifikasi</p>
-            <p className="font-bold text-sm truncate">{currentUser.nama}</p>
+            <p className="font-bold text-sm truncate text-white">{currentUser.nama}</p>
             <p className="text-[11px] text-amber-300 font-mono mt-0.5">{currentUser.kota || "Indonesia"}</p>
           </div>
 
@@ -270,7 +270,7 @@ export default function App() {
               </button>
             )}
 
-            {/* Menu Navigasi Bantuan, Syarat & Profil */}
+            {/* Menu Navigasi Profil, Bantuan, FAQ, Terms */}
             <div className="pt-3 mt-3 border-t border-white/15 space-y-1">
               <button
                 onClick={() => { setActiveTab("profil"); setSidebarOpen(false); }}
@@ -355,7 +355,6 @@ export default function App() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {products.map(p => {
-                  // Generator Link Referral Unik
                   const uniqueAffLink = `${p.link_affiliate || "https://mitraberkah.com/buy"}?ref=${currentUser.id}&ktp=${currentUser.no_ktp?.slice(-4)}`;
 
                   return (
@@ -968,6 +967,484 @@ function DataUsersFilterPanel({ usersList, getRoleBadge }) {
 }
 
 // ---------------- 11. SMART AUTH STEP-BY-STEP (LOGIN / REG / FORGOT OTP) ----------------
+function AuthView({ onLoginSuccess }) {
+  const [step, setStep] = useState(1);
+  const [noKtp, setNoKtp] = useState("");
+  const [noHp, setNoHp] = useState("");
+  const [password, setPassword] = useState("");
+  
+  const [nama, setNama] = useState("");
+  const [email, setEmail] = useState("");
+  const [alamatKota, setAlamatKota] = useState("");
+  const [provinsi, setProvinsi] = useState("");
+  const [telegram, setTelegram] = useState("");
+  const [namaBank, setNamaBank] = useState("");
+  const [noRekening, setNoRekening] = useState("");
+
+  const [inputOtp, setInputOtp] = useState("");
+  const [generatedOtp, setGeneratedOtp] = useState("");
+  const [passwordBaru, setPasswordBaru] = useState("");
+  const [targetUser, setTargetUser] = useState(null);
+
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+  const [userDataFound, setUserDataFound] = useState(null);
+
+  const handleCekKtpDanWA = async () => {
+    const cleanKtp = noKtp.trim();
+    const cleanWa = noHp.trim();
+
+    if (!cleanKtp || cleanKtp.length < 16) {
+      return setErrorMsg("Masukkan nomor KTP yang valid!");
+    }
+    if (!cleanWa || cleanWa.length < 9) {
+      return setErrorMsg("Masukkan nomor WhatsApp yang valid!");
+    }
+
+    setLoading(true);
+    setErrorMsg("");
+
+    try {
+      const qKtp = query(collection(db, "users"), where("no_ktp", "==", cleanKtp));
+      const snapKtp = await getDocs(qKtp);
+
+      if (!snapKtp.empty) {
+        const docUser = snapKtp.docs[0];
+        setUserDataFound({ id: docUser.id, ...docUser.data() });
+        setStep(2);
+      } else {
+        const qWa = query(collection(db, "users"), where("no_hp", "==", cleanWa));
+        const snapWa = await getDocs(qWa);
+
+        if (!snapWa.empty) {
+          const docUser = snapWa.docs[0];
+          setUserDataFound({ id: docUser.id, ...docUser.data() });
+          setStep(2);
+        } else {
+          setStep(3);
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      setErrorMsg("Koneksi database bermasalah: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLoginSubmit = () => {
+    if (!password) return setErrorMsg("Masukkan password Anda.");
+    
+    if (userDataFound.password === password) {
+      onLoginSuccess(userDataFound);
+    } else {
+      setErrorMsg("Password salah! Silakan periksa kembali atau gunakan link Lupa Password.");
+    }
+  };
+
+  const handleRegisterSubmit = async () => {
+    if (!nama || !email || !alamatKota || !provinsi || !telegram || !namaBank || !noRekening || !password) {
+      return setErrorMsg("Mohon lengkapi seluruh kolom pendaftaran termasuk email!");
+    }
+    if (password.length < 6) {
+      return setErrorMsg("Password minimal 6 karakter!");
+    }
+
+    setLoading(true);
+    setErrorMsg("");
+
+    const newUser = {
+      no_ktp: noKtp.trim(),
+      no_hp: noHp.trim(),
+      email: email.trim().toLowerCase(),
+      nama: nama.trim(),
+      kota: alamatKota.trim(),
+      provinsi: provinsi.trim(),
+      telegram: telegram.trim().replace(/^@/, ""),
+      nama_bank: namaBank.trim(),
+      no_rekening: noRekening.trim(),
+      password: password,
+      role: "user",
+      saldo: 0,
+      created_at: new Date().toISOString()
+    };
+
+    try {
+      const docRef = await addDoc(collection(db, "users"), newUser);
+      alert("✅ Pendaftaran berhasil! Selamat datang di Mitra Berkah.");
+      onLoginSuccess({ id: docRef.id, ...newUser });
+    } catch (err) {
+      console.error(err);
+      setErrorMsg("Gagal menyimpan data: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRequestOtp = async () => {
+    if (!email) return setErrorMsg("Ketikkan alamat email akun Anda!");
+    setLoading(true);
+    setErrorMsg("");
+
+    try {
+      const q = query(collection(db, "users"), where("email", "==", email.trim().toLowerCase()));
+      const snap = await getDocs(q);
+
+      if (snap.empty) {
+        setLoading(false);
+        return setErrorMsg("Email tersebut tidak terdaftar di sistem.");
+      }
+
+      const docU = snap.docs[0];
+      const uData = { id: docU.id, ...docU.data() };
+      setTargetUser(uData);
+
+      const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+      setGeneratedOtp(otpCode);
+
+      await addDoc(collection(db, "password_resets"), {
+        user_id: uData.id,
+        email: uData.email,
+        nama: uData.nama,
+        otp: otpCode,
+        status: "PENDING",
+        created_at: new Date().toISOString()
+      });
+
+      alert(`✅ Kode OTP Permintaan Reset: ${otpCode}\n\nPermintaan telah diteruskan ke Email & CS Admin.`);
+      setStep(5);
+    } catch (err) {
+      setErrorMsg("Gagal meminta OTP: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleConfirmResetPassword = async () => {
+    if (!inputOtp || !passwordBaru) return setErrorMsg("Lengkapi Kode OTP dan Password Baru!");
+    if (inputOtp.trim() !== generatedOtp.trim()) return setErrorMsg("Kode OTP salah atau tidak sesuai!");
+    if (passwordBaru.length < 6) return setErrorMsg("Password baru minimal 6 karakter!");
+
+    setLoading(true);
+    setErrorMsg("");
+
+    try {
+      await updateDoc(doc(db, "users", targetUser.id), { password: passwordBaru });
+      alert("🎉 Kata sandi Anda berhasil diperbarui! Silakan masuk kembali.");
+      setStep(1);
+      setPassword("");
+      setPasswordBaru("");
+      setInputOtp("");
+    } catch (err) {
+      setErrorMsg("Gagal memperbarui password: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center p-4 bg-[#F8F9FA] font-sans">
+      <div className="w-full max-w-sm p-6 bg-white rounded-3xl border border-stone-200 shadow-md">
+        
+        <div className="text-center mb-5">
+          <div className="w-10 h-10 bg-blue-900 text-white rounded-2xl flex items-center justify-center mx-auto mb-2">
+            <Sparkles size={20} className="text-amber-400" />
+          </div>
+          <h2 className="text-xl font-bold text-stone-900">Mitra Berkah Affiliate</h2>
+          <p className="text-xs text-stone-500">Mesin Pembuat Link Penjualan & Komisi</p>
+        </div>
+
+        {errorMsg && (
+          <div className="mb-4 p-3 bg-red-50 text-red-700 text-xs rounded-xl flex items-center gap-1.5">
+            <AlertCircle size={14} className="shrink-0" /> 
+            <span>{errorMsg}</span>
+          </div>
+        )}
+
+        {/* STEP 1: PERIKSA KTP & WA */}
+        {step === 1 && (
+          <div className="space-y-3">
+            <div>
+              <label className="text-xs font-bold text-stone-700">Nomor KTP</label>
+              <input
+                type="text"
+                value={noKtp}
+                onChange={e => setNoKtp(e.target.value.replace(/\D/g, ""))}
+                placeholder="Nomor KTP Anda"
+                className="w-full mt-1 p-2.5 text-xs font-mono border border-stone-200 rounded-xl outline-none focus:border-blue-900"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-stone-700">Nomor WhatsApp</label>
+              <input
+                type="tel"
+                value={noHp}
+                onChange={e => setNoHp(e.target.value)}
+                placeholder="Contoh: 081234567890"
+                className="w-full mt-1 p-2.5 text-xs border border-stone-200 rounded-xl outline-none focus:border-blue-900"
+              />
+            </div>
+
+            <div className="flex justify-between items-center text-xs">
+              <span className="text-[11px] text-stone-400">*Deteksi otomatis KTP / WA.</span>
+              <button onClick={() => { setStep(4); setErrorMsg(""); }} className="text-blue-900 font-bold hover:underline">
+                Lupa Password?
+              </button>
+            </div>
+
+            <button
+              onClick={handleCekKtpDanWA}
+              disabled={loading}
+              className="w-full py-3 bg-blue-900 hover:bg-blue-950 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 disabled:opacity-50"
+            >
+              {loading ? "Memeriksa Akun..." : "Lanjutkan"} <ArrowRight size={14} />
+            </button>
+          </div>
+        )}
+
+        {/* STEP 2: LOGIN PASSWORD */}
+        {step === 2 && (
+          <div className="space-y-3">
+            <div className="p-3 bg-blue-50 border border-blue-100 rounded-xl">
+              <p className="text-xs text-blue-900 font-bold">Akun Terdaftar Ditemukan!</p>
+              <p className="text-xs text-stone-700 mt-0.5">Nama: <strong>{userDataFound?.nama}</strong></p>
+              <p className="text-[11px] text-stone-500 font-mono">Role: {userDataFound?.role?.toUpperCase()}</p>
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-stone-700">Masukkan Password</label>
+              <input
+                type="password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                placeholder="••••••••"
+                className="w-full mt-1 p-2.5 text-xs border border-stone-200 rounded-xl outline-none"
+              />
+            </div>
+
+            <div className="text-right">
+              <button onClick={() => { setEmail(userDataFound?.email || ""); setStep(4); setErrorMsg(""); }} className="text-xs text-blue-900 font-bold hover:underline">
+                Lupa Password Akun Ini?
+              </button>
+            </div>
+
+            <button
+              onClick={handleLoginSubmit}
+              className="w-full py-3 bg-blue-900 hover:bg-blue-950 text-white rounded-xl text-xs font-bold transition"
+            >
+              Masuk ke Dashboard
+            </button>
+
+            <button
+              onClick={() => { setStep(1); setPassword(""); setErrorMsg(""); }}
+              className="w-full py-2 text-xs text-stone-500 font-semibold hover:underline"
+            >
+              ← Kembali
+            </button>
+          </div>
+        )}
+
+        {/* STEP 3: PENDAFTARAN LENGKAP */}
+        {step === 3 && (
+          <div className="space-y-2.5 max-h-[72vh] overflow-y-auto pr-1">
+            <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-xl">
+              <p className="text-xs text-amber-900 font-bold">Pendaftaran Akun Baru</p>
+              <p className="text-[11px] text-stone-600">Lengkapi identitas untuk penerimaan komisi & bimbingan.</p>
+            </div>
+
+            <div>
+              <label className="text-[11px] font-bold text-stone-700">Nama Lengkap Sesuai KTP</label>
+              <input value={nama} onChange={e => setNama(e.target.value)} placeholder="Siti Aminah" className="w-full mt-0.5 p-2 text-xs border border-stone-200 rounded-xl" />
+            </div>
+
+            <div>
+              <label className="text-[11px] font-bold text-stone-700">Alamat Email Aktif</label>
+              <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="nama@email.com" className="w-full mt-0.5 p-2 text-xs border border-stone-200 rounded-xl" />
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-[11px] font-bold text-stone-700">Kota / Kab</label>
+                <input value={alamatKota} onChange={e => setAlamatKota(e.target.value)} placeholder="Bandung" className="w-full mt-0.5 p-2 text-xs border border-stone-200 rounded-xl" />
+              </div>
+              <div>
+                <label className="text-[11px] font-bold text-stone-700">Provinsi</label>
+                <input value={provinsi} onChange={e => setProvinsi(e.target.value)} placeholder="Jawa Barat" className="w-full mt-0.5 p-2 text-xs border border-stone-200 rounded-xl" />
+              </div>
+            </div>
+
+            <div>
+              <label className="text-[11px] font-bold text-stone-700">Username Telegram (Pusat Bimbingan)</label>
+              <input value={telegram} onChange={e => setTelegram(e.target.value)} placeholder="username_tele (tanpa @)" className="w-full mt-0.5 p-2 text-xs border border-stone-200 rounded-xl" />
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-[11px] font-bold text-stone-700">Bank / E-Wallet</label>
+                <input value={namaBank} onChange={e => setNamaBank(e.target.value)} placeholder="BCA / BRI / DANA" className="w-full mt-0.5 p-2 text-xs border border-stone-200 rounded-xl" />
+              </div>
+              <div>
+                <label className="text-[11px] font-bold text-stone-700">Nomor Rekening</label>
+                <input value={noRekening} onChange={e => setNoRekening(e.target.value)} placeholder="1234567890" className="w-full mt-0.5 p-2 text-xs border border-stone-200 rounded-xl" />
+              </div>
+            </div>
+
+            <div>
+              <label className="text-[11px] font-bold text-stone-700">Buat Password Akun</label>
+              <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Minimal 6 karakter" className="w-full mt-0.5 p-2 text-xs border border-stone-200 rounded-xl outline-none" />
+            </div>
+
+            <button
+              onClick={handleRegisterSubmit}
+              disabled={loading}
+              className="w-full mt-2 py-3 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition"
+            >
+              {loading ? "Menyimpan Data..." : "Selesaikan Pendaftaran (Gratis)"}
+            </button>
+
+            <button onClick={() => { setStep(1); setErrorMsg(""); }} className="w-full py-1.5 text-xs text-stone-500 font-semibold hover:underline">
+              ← Kembali
+            </button>
+          </div>
+        )}
+
+        {/* STEP 4: MINTA OTP LUPA PASSWORD */}
+        {step === 4 && (
+          <div className="space-y-3">
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl">
+              <p className="text-xs text-amber-900 font-bold flex items-center gap-1"><KeyRound size={14} /> Reset Sandi Akun</p>
+              <p className="text-[11px] text-stone-600 mt-1">Masukkan alamat email Anda untuk menerima permintaan verifikasi OTP reset sandi.</p>
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-stone-700">Alamat Email Terdaftar</label>
+              <input
+                type="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                placeholder="nama@email.com"
+                className="w-full mt-1 p-2.5 text-xs border border-stone-200 rounded-xl outline-none focus:border-blue-900"
+              />
+            </div>
+
+            <button
+              onClick={handleRequestOtp}
+              disabled={loading}
+              className="w-full py-3 bg-blue-900 hover:bg-blue-950 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5"
+            >
+              {loading ? "Mengirim OTP..." : "Kirim Permintaan OTP"} <Mail size={14} />
+            </button>
+
+            <button onClick={() => { setStep(1); setErrorMsg(""); }} className="w-full py-1 text-xs text-stone-500 font-semibold hover:underline">
+              ← Kembali ke Menu Masuk
+            </button>
+          </div>
+        )}
+
+        {/* STEP 5: KONFIRMASI OTP & RESET PASSWORD */}
+        {step === 5 && (
+          <div className="space-y-3">
+            <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
+              <p className="text-xs text-emerald-900 font-bold">Verifikasi OTP & Sandi Baru</p>
+              <p className="text-[11px] text-stone-600 mt-0.5">Masukkan kode 6 digit OTP yang telah dibuat serta tentukan kata sandi baru.</p>
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-stone-700">Kode OTP (6 Digit)</label>
+              <input
+                type="text"
+                maxLength={6}
+                value={inputOtp}
+                onChange={e => setInputOtp(e.target.value)}
+                placeholder="123456"
+                className="w-full mt-1 p-2.5 text-xs font-mono text-center tracking-widest border border-stone-200 rounded-xl outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-stone-700">Password Baru</label>
+              <input
+                type="password"
+                value={passwordBaru}
+                onChange={e => setPasswordBaru(e.target.value)}
+                placeholder="Minimal 6 karakter"
+                className="w-full mt-1 p-2.5 text-xs border border-stone-200 rounded-xl outline-none"
+              />
+            </div>
+
+            <button
+              onClick={handleConfirmResetPassword}
+              disabled={loading}
+              className="w-full py-3 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5"
+            >
+              {loading ? "Memproses..." : "Konfirmasi & Simpan Sandi Baru"}
+            </button>
+
+            <button onClick={() => { setStep(4); setErrorMsg(""); }} className="w-full py-1 text-xs text-stone-500 font-semibold hover:underline">
+              ← Kirim Ulang OTP
+            </button>
+          </div>
+        )}
+
+      </div>
+    </div>
+  );
+}
+
+// ---------------- 12. CRUD PRODUK ADMIN ----------------
+function KelolaProdukAdmin({ products, setProducts }) {
+  const [nama, setNama] = useState("");
+  const [kategori, setKategori] = useState("fisik");
+  const [komisi, setKomisi] = useState(10);
+  const [potensi, setPotensi] = useState("");
+  const [harga, setHarga] = useState("");
+  const [link, setLink] = useState("");
+  const [deskripsi, setDeskripsi] = useState("");
+
+  const handleAdd = async () => {
+    if (!nama || !potensi) return alert("Lengkapi data produk");
+    const item = {
+      nama_produk: nama,
+      kategori,
+      komisi_persen: Number(komisi),
+      potensi_komisi: Number(potensi),
+      harga: Number(harga) || 100000,
+      link_affiliate: link || "https://shope.ee/contoh",
+      deskripsi: deskripsi || "Produk resmi Mitra Berkah."
+    };
+
+    try {
+      const docRef = await addDoc(collection(db, "products"), item);
+      setProducts([{ id: docRef.id, ...item }, ...products]);
+    } catch (e) {
+      setProducts([{ id: Date.now().toString(), ...item }, ...products]);
+    }
+    setNama(""); setPotensi(""); setHarga(""); setLink(""); setDeskripsi("");
+    alert("Produk berhasil ditambahkan!");
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="p-4 rounded-2xl bg-white border-2 border-blue-900 space-y-3">
+        <p className="text-xs font-bold uppercase text-blue-900">Tambah Produk Baru</p>
+        <input value={nama} onChange={e => setNama(e.target.value)} placeholder="Nama Produk" className="w-full p-2 text-xs border rounded-xl" />
+        <div className="grid grid-cols-2 gap-2">
+          <select value={kategori} onChange={e => { setKategori(e.target.value); setKomisi(e.target.value === 'digital' ? 80 : 10); }} className="p-2 text-xs border rounded-xl bg-white">
+            <option value="fisik">Fisik (Komisi 10%)</option>
+            <option value="digital">Digital (Komisi 80%)</option>
+          </select>
+          <input type="number" value={harga} onChange={e => setHarga(e.target.value)} placeholder="Harga Produk (Rp)" className="p-2 text-xs border rounded-xl" />
+        </div>
+        <input type="number" value={potensi} onChange={e => setPotensi(e.target.value)} placeholder="Potensi Komisi (Rp)" className="w-full p-2 text-xs border rounded-xl" />
+        <input value={link} onChange={e => setLink(e.target.value)} placeholder="Link Affiliate / Toko" className="w-full p-2 text-xs border rounded-xl" />
+        <input value={deskripsi} onChange={e => setDeskripsi(e.target.value)} placeholder="Deskripsi Singkat Produk" className="w-full p-2 text-xs border rounded-xl" />
+        <button onClick={handleAdd} className="w-full py-2 bg-blue-900 text-white rounded-xl text-xs font-bold">Simpan Produk</button>
+      </div>
+    </div>
+  );
+}
+
 function AuthView({ onLoginSuccess }) {
   const [step, setStep] = useState(1);
   const [noKtp, setNoKtp] = useState("");
